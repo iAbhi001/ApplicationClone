@@ -7,18 +7,25 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { 
+  cors: { origin: process.env.CLIENT_URL || "http://localhost:3000" } 
+});
 
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// API Routes
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/messages", require("./routes/messageRoutes"));
 
-mongoose.connect(process.env.MONGODB_URI).then(() => console.log("DB Connected"));
+// Socket Logic
+const registerSocket = require("./sockets/socketHandler");
+io.on("connection", (socket) => registerSocket(io, socket));
 
-const registerSocketHandlers = require("./sockets/socketHandler");
-io.on("connection", (socket) => registerSocketHandlers(io, socket));
-
-server.listen(process.env.PORT || 5000, () => console.log("Server Active"));
+// DB Connection & Server Start
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    const PORT = process.env.PORT || 5000;
+    server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  })
+  .catch(err => console.error("Database connection error:", err));
